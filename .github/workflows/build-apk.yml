@@ -1,0 +1,258 @@
+name: Compilar APK Lost Warrior
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el repositorio
+        uses: actions/checkout@v4
+
+      - name: Instalar Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Instalar Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-34 build-tools;34.0.0'
+
+      - name: Instalar Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Generar el proyecto Android y meter el juego
+        run: |
+          mkdir -p android/app/src/main/java/com/xypher/lostwarrior android/app/src/main/res/values android/app/src/main/res/drawable-nodpi android/app/src/main/res/mipmap-anydpi-v26 android/app/src/main/res/mipmap-xxxhdpi android/app/src/main/assets
+          cat > android/settings.gradle <<'EOF_LW'
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          rootProject.name = "LostWarrior"
+          include ':app'
+          EOF_LW
+          cat > android/build.gradle <<'EOF_LW'
+          plugins {
+              id 'com.android.application' version '8.5.2' apply false
+          }
+          EOF_LW
+          cat > android/app/build.gradle <<'EOF_LW'
+          plugins {
+              id 'com.android.application'
+          }
+
+          android {
+              namespace 'com.xypher.lostwarrior'
+              compileSdk 34
+
+              defaultConfig {
+                  applicationId 'com.xypher.lostwarrior'
+                  minSdk 26
+                  targetSdk 34
+                  versionCode 1
+                  versionName '0.1'
+              }
+
+              signingConfigs {
+                  debug {
+                      storeFile file('../debug.keystore')
+                      storePassword 'android'
+                      keyAlias 'androiddebugkey'
+                      keyPassword 'android'
+                  }
+              }
+
+              buildTypes {
+                  release {
+                      minifyEnabled false
+                  }
+              }
+
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_17
+                  targetCompatibility JavaVersion.VERSION_17
+              }
+          }
+          EOF_LW
+          cat > android/app/src/main/AndroidManifest.xml <<'EOF_LW'
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+              <application
+                  android:allowBackup="true"
+                  android:icon="@mipmap/ic_launcher"
+                  android:roundIcon="@mipmap/ic_launcher_round"
+                  android:label="@string/app_name"
+                  android:theme="@style/Theme.LostWarrior"
+                  android:usesCleartextTraffic="false">
+
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true"
+                      android:screenOrientation="landscape"
+                      android:configChanges="orientation|screenSize|keyboardHidden">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOF_LW
+          cat > android/app/src/main/java/com/xypher/lostwarrior/MainActivity.java <<'EOF_LW'
+          package com.xypher.lostwarrior;
+
+          import android.app.Activity;
+          import android.graphics.Color;
+          import android.os.Bundle;
+          import android.view.View;
+          import android.view.Window;
+          import android.view.WindowManager;
+          import android.webkit.WebSettings;
+          import android.webkit.WebView;
+          import android.webkit.WebViewClient;
+
+          public class MainActivity extends Activity {
+
+              private WebView webView;
+
+              @Override
+              protected void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+
+                  Window window = getWindow();
+                  window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+                  window.setStatusBarColor(Color.rgb(5, 6, 12));
+                  window.setNavigationBarColor(Color.rgb(5, 6, 12));
+                  hideSystemUi();
+
+                  webView = new WebView(this);
+                  webView.setBackgroundColor(Color.rgb(5, 6, 12));
+
+                  WebSettings settings = webView.getSettings();
+                  settings.setJavaScriptEnabled(true);
+                  settings.setDomStorageEnabled(true);
+                  settings.setMediaPlaybackRequiresUserGesture(false);
+
+                  webView.setWebViewClient(new WebViewClient());
+                  webView.loadUrl("file:///android_asset/index.html");
+
+                  setContentView(webView);
+              }
+
+              private void hideSystemUi() {
+                  getWindow().getDecorView().setSystemUiVisibility(
+                          View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                          | View.SYSTEM_UI_FLAG_FULLSCREEN
+                          | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                          | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                          | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                          | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
+              }
+
+              @Override
+              public void onWindowFocusChanged(boolean hasFocus) {
+                  super.onWindowFocusChanged(hasFocus);
+                  if (hasFocus) hideSystemUi();
+              }
+
+              @Override
+              public void onBackPressed() {
+                  if (webView != null && webView.canGoBack()) {
+                      webView.goBack();
+                  } else {
+                      super.onBackPressed();
+                  }
+              }
+          }
+          EOF_LW
+          cat > android/app/src/main/res/values/strings.xml <<'EOF_LW'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <string name="app_name">Lost Warrior</string>
+          </resources>
+          EOF_LW
+          cat > android/app/src/main/res/values/colors.xml <<'EOF_LW'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <color name="ic_launcher_background">#0D1024</color>
+          </resources>
+          EOF_LW
+          cat > android/app/src/main/res/values/themes.xml <<'EOF_LW'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <style name="Theme.LostWarrior" parent="@android:style/Theme.Material.NoActionBar">
+                  <item name="android:windowBackground">@android:color/black</item>
+                  <item name="android:statusBarColor">#05060C</item>
+                  <item name="android:navigationBarColor">#05060C</item>
+              </style>
+          </resources>
+          EOF_LW
+          cat > android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml <<'EOF_LW'
+          <?xml version="1.0" encoding="utf-8"?>
+          <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+              <background android:drawable="@color/ic_launcher_background" />
+              <foreground android:drawable="@drawable/ic_launcher_art" />
+          </adaptive-icon>
+          EOF_LW
+          cat > android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml <<'EOF_LW'
+          <?xml version="1.0" encoding="utf-8"?>
+          <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+              <background android:drawable="@color/ic_launcher_background" />
+              <foreground android:drawable="@drawable/ic_launcher_art" />
+          </adaptive-icon>
+          EOF_LW
+          cp index.html android/app/src/main/assets/index.html
+          cp icon.png android/app/src/main/res/drawable-nodpi/ic_launcher_art.png
+          cp icon.png android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+          cp icon.png android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
+          find android -type f | sort
+
+      - name: Restaurar la firma fija
+        env:
+          KS_B64: ${{ secrets.DEBUG_KEYSTORE_B64 }}
+        run: |
+          echo "$KS_B64" | base64 -d > android/debug.keystore
+          ls -l android/debug.keystore
+
+      - name: Compilar APK (debug, instalable)
+        working-directory: android
+        run: gradle assembleDebug --no-daemon --stacktrace
+
+      - name: Preparar la APK con su nombre
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk LOST-WARRIOR.apk
+
+      - name: Publicar la APK como Release descargable
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v0.1
+          name: Lost Warrior · APK v0.1 (prueba de movilidad)
+          body: "Lost Warrior — The Mirror Dimension, v0.1: primera prueba jugable. Tu héroe en un campo de la dimensión espejo (suelo de espejo con reflejo, plataformas) con controles táctiles: ◀ ▶ moverse, 🏃 correr, ⬆ saltar entre plataformas, ⚔️ ataque con katana y 🔥 embestida de brasas rojas. Descarga LOST-WARRIOR.apk e instálala en tu Android."
+          files: LOST-WARRIOR.apk
+
+      - name: Guardar también como artefacto
+        uses: actions/upload-artifact@v4
+        with:
+          name: LOST-WARRIOR-apk
+          path: LOST-WARRIOR.apk
