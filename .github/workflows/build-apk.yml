@@ -70,8 +70,8 @@ jobs:
                   applicationId 'com.xypher.lostwarrior'
                   minSdk 26
                   targetSdk 34
-                  versionCode 3
-                  versionName '0.3'
+                  versionCode 4
+                  versionName '0.4'
               }
 
               signingConfigs {
@@ -246,8 +246,8 @@ jobs:
       - name: Publicar la APK como Release descargable
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v0.3
-          name: Lost Warrior · APK v0.3
+          tag_name: v0.4
+          name: Lost Warrior · APK v0.4
           body: "Lost Warrior — The Mirror Dimension, v0.3: animaciones nuevas de 11-12 cuadros (idle con respiración, caminar, correr, salto completo y slash pixel art amplio), físicas nuevas (el impulso se conserva al correr y saltar, doble salto con anillo, gravedad con hang en el ápice), animación de aterrizaje con squash, y efectos de los pins de referencia: humo en racimo con borde al correr/aterrizar/saltar, líneas de velocidad, estela de fantasmas y estiramiento (smear) en la embestida, resplandor en ataques y volutas de humo en reposo. Se instala encima de la v0.2."
           files: LOST-WARRIOR.apk
 
